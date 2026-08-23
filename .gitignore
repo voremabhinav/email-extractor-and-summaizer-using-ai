@@ -1,0 +1,17 @@
+# Environment variables (API keys)
+.env
+.env*.local
+
+# Dependencies
+node_modules/
+
+# WhatsApp session data and cache (keep your login private)
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Agent/editor folders
+.claude/
+
+# OS and debug logs
+*.log
+.DS_Store
