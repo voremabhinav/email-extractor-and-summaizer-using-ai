@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ProgressTracking from "./components/ProgressTracking";
 
 function App() {
   const employeeId = "76d591be-e487-4773-8e00-f22809b9416d";
@@ -129,10 +130,15 @@ function App() {
           ))}
         </div>
       </section>
+
+      {/* Progress Tracking */}
+      <section style={styles.tasksSection}>
+        <ProgressTracking />
+      </section>
     </div>
   );
 }
-
+    
 const styles = {
   page: {
     minHeight: "100vh",

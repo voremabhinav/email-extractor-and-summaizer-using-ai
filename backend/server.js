@@ -6,12 +6,13 @@ const cors = require("cors");
 const app = express();
 
 const taskRoutes = require("./routes/taskRoutes");
+const progressRoutes = require("./routes/progressRoutes");
 
 app.use(cors());
 app.use(express.json());
 
 app.use("/tasks", taskRoutes);
-
+app.use("/api/progress", progressRoutes);
 app.get("/", (req, res) => {
     res.json({
         success: true,
