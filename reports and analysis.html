@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Analytics & Reporting Engine</title>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #f4f6f9; margin: 0; padding: 24px; color: #333; }
+    
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .header h1 { margin: 0; font-size: 24px; color: #1a1a1a; }
+    .actions { display: flex; gap: 12px; }
+    
+    button { background: #0066fe; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    button:hover { background: #0052cc; }
+    button.secondary { background: #28a745; }
+    button.secondary:hover { background: #218838; }
+
+    /* KPI Cards */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .kpi-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .kpi-card h4 { margin: 0; font-size: 13px; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; }
+    .kpi-card p { margin: 8px 0 0; font-size: 28px; font-weight: 700; color: #111; }
+
+    /* Charts Section */
+    .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-bottom: 24px; }
+    .chart-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .chart-card h3 { margin-top: 0; margin-bottom: 16px; font-size: 16px; color: #444; }
+
+    /* Data Table & Form */
+    .main-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+    .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #eee; }
+    th { background: #f8f9fa; color: #6c757d; font-weight: 600; }
+    
+    .badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: capitalize; }
+    .badge.todo { background: #e9ecef; color: #495057; }
+    .badge.in-progress { background: #cce5ff; color: #004085; }
+    .badge.completed { background: #d4edda; color: #155724; }
+    .badge.blocked { background: #f8d7da; color: #721c24; }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #555; }
+    .form-group input, .form-group select { width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Reports & Analytics Dashboard</h1>
+    <div class="actions">
+      <button class="secondary" onclick="exportCSV()">Export Report (CSV)</button>
+    </div>
+  </div>
+
+  <!-- KPI SUMMARY CARDS -->
+  <div class="kpi-grid">
+    <div class="kpi-card"><h4>Total Tasks</h4><p id="kpiTotal">0</p></div>
+    <div class="kpi-card"><h4>Completion Rate</h4><p id="kpiRate">0%</p></div>
+    <div class="kpi-card"><h4>Overdue Tasks</h4><p id="kpiOverdue" style="color: #dc3545;">0</p></div>
+    <div class="kpi-card"><h4>Total Logged Hours</h4><p id="kpiHours">0 hrs</p></div>
+  </div>
+
+  <!-- VISUALIZATION CHARTS -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>Task Distribution by Status</h3>
+      <canvas id="statusChart" height="200"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Team Workload & Completion</h3>
+      <canvas id="workloadChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- DATA MANAGEMENT TABLE & INPUT FORM -->
+  <div class="main-grid">
+    <div class="panel">
+      <h3>Task Inventory</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Assignee</th>
+            <th>Status</th>
+            <th>Priority</th>
+            <th>Hours (Est/Act)</th>
+          </tr>
+        </thead>
+        <tbody id="taskTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h3>Add New Task</h3>
+      <form id="taskForm" onsubmit="addTask(event)">
+        <div class="form-group">
+          <label>Task Title</label>
+          <input type="text" id="title" required placeholder="e.g. API Integration">
+        </div>
+        <div class="form-group">
+          <label>Assigned To</label>
+          <input type="text" id="assignedTo" required placeholder="e.g. Alice">
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="status">
+            <option value="todo">To Do</option>
+            <option value="in-progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="blocked">Blocked</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Priority</label>
+          <select id="priority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+        <div class="form-group" style="display:flex; gap:10px;">
+          <div style="flex:1;">
+            <label>Est. Hours</label>
+            <input type="number" id="estimatedHours" value="4" min="0">
+          </div>
+          <div style="flex:1;">
+            <label>Act. Hours</label>
+            <input type="number" id="actualHours" value="0" min="0">
+          </div>
+        </div>
+        <button type="submit" style="width:100%;">Add Task & Recalculate</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // 1. IN-MEMORY DATA STORE
+    let tasks = [
+      { id: 1, title: 'Database Schema Design', assignedTo: 'Alice', status: 'completed', priority: 'high', estimatedHours: 6, actualHours: 5, dueDate: '2026-08-10' },
+      { id: 2, title: 'Auth API Endpoints', assignedTo: 'Bob', status: 'in-progress', priority: 'high', estimatedHours: 12, actualHours: 8, dueDate: '2026-08-18' },
+      { id: 3, title: 'UI Mockups for Dashboard', assignedTo: 'Alice', status: 'completed', priority: 'medium', estimatedHours: 8, actualHours: 10, dueDate: '2026-08-12' },
+      { id: 4, title: 'Write Automated E2E Tests', assignedTo: 'Charlie', status: 'todo', priority: 'low', estimatedHours: 10, actualHours: 0, dueDate: '2026-08-14' },
+      { id: 5, title: 'Fix Memory Leak Bug', assignedTo: 'Bob', status: 'blocked', priority: 'urgent', estimatedHours: 4, actualHours: 3, dueDate: '2026-08-13' }
+    ];
+
+    let statusChartInstance = null;
+    let workloadChartInstance = null;
+
+    // 2. ANALYTICS COMPUTATION ENGINE
+    function calculateAnalytics() {
+      const now = new Date();
+      
+      const totalTasks = tasks.length;
+      const completedTasks = tasks.filter(t => t.status === 'completed').length;
+      const overdueTasks = tasks.filter(t => t.status !== 'completed' && new Date(t.dueDate) < now).length;
+      const totalHours = tasks.reduce((sum, t) => sum + Number(t.actualHours), 0);
+      const rate = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(1) : 0;
+
+      // KPI DOM updates
+      document.getElementById('kpiTotal').innerText = totalTasks;
+      document.getElementById('kpiRate').innerText = rate + '%';
+      document.getElementById('kpiOverdue').innerText = overdueTasks;
+      document.getElementById('kpiHours').innerText = totalHours + ' hrs';
+
+      // Aggregations for Status Chart
+      const statusCounts = { 'todo': 0, 'in-progress': 0, 'completed': 0, 'blocked': 0 };
+      tasks.forEach(t => statusCounts[t.status] = (statusCounts[t.status] || 0) + 1);
+
+      // Aggregations for Workload Chart
+      const workloadMap = {};
+      tasks.forEach(t => {
+        if (!workloadMap[t.assignedTo]) {
+          workloadMap[t.assignedTo] = { total: 0, completed: 0 };
+        }
+        workloadMap[t.assignedTo].total += 1;
+        if (t.status === 'completed') workloadMap[t.assignedTo].completed += 1;
+      });
+
+      renderCharts(statusCounts, workloadMap);
+      renderTable();
+    }
+
+    // 3. CHART RENDERING
+    function renderCharts(statusCounts, workloadMap) {
+      // Status Doughnut Chart
+      const ctxStatus = document.getElementById('statusChart').getContext('2d');
+      if (statusChartInstance) statusChartInstance.destroy();
+      
+      statusChartInstance = new Chart(ctxStatus, {
+        type: 'doughnut',
+        data: {
+          labels: ['To Do', 'In Progress', 'Completed', 'Blocked'],
+          datasets: [{
+            data: [statusCounts['todo'], statusCounts['in-progress'], statusCounts['completed'], statusCounts['blocked']],
+            backgroundColor: ['#6c757d', '#007bff', '#28a745', '#dc3545']
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+      });
+
+      // Workload Grouped Bar Chart
+      const ctxWorkload = document.getElementById('workloadChart').getContext('2d');
+      if (workloadChartInstance) workloadChartInstance.destroy();
+
+      const members = Object.keys(workloadMap);
+      workloadChartInstance = new Chart(ctxWorkload, {
+        type: 'bar',
+        data: {
+          labels: members,
+          datasets: [
+            {
+              label: 'Assigned',
+              data: members.map(m => workloadMap[m].total),
+              backgroundColor: '#007bff'
+            },
+            {
+              label: 'Completed',
+              data: members.map(m => workloadMap[m].completed),
+              backgroundColor: '#28a745'
+            }
+          ]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      });
+    }
+
+    // 4. TABLE RENDER & CRUD OPERATIONS
+    function renderTable() {
+      const tbody = document.getElementById('taskTableBody');
+      tbody.innerHTML = tasks.map(t => `
+        <tr>
+          <td><strong>${t.title}</strong></td>
+          <td>${t.assignedTo}</td>
+          <td><span class="badge ${t.status}">${t.status}</span></td>
+          <td style="text-transform:capitalize;">${t.priority}</td>
+          <td>${t.estimatedHours}h / ${t.actualHours}h</td>
+        </tr>
+      `).join('');
+    }
+
+    function addTask(event) {
+      event.preventDefault();
+      const newTask = {
+        id: Date.now(),
+        title: document.getElementById('title').value,
+        assignedTo: document.getElementById('assignedTo').value,
+        status: document.getElementById('status').value,
+        priority: document.getElementById('priority').value,
+        estimatedHours: Number(document.getElementById('estimatedHours').value),
+        actualHours: Number(document.getElementById('actualHours').value),
+        dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0]
+      };
+      
+      tasks.push(newTask);
+      calculateAnalytics();
+      document.getElementById('taskForm').reset();
+    }
+
+    // 5. CSV REPORT EXPORT EXPORT ENGINE
+    function exportCSV() {
+      const headers = ['Task ID', 'Title', 'Assigned To', 'Status', 'Priority', 'Estimated Hours', 'Actual Hours', 'Due Date'];
+      const rows = tasks.map(t => [t.id, `"${t.title}"`, t.assignedTo, t.status, t.priority, t.estimatedHours, t.actualHours, t.dueDate]);
+      
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `Task_Analytics_Report_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Initial Engine Start
+    calculateAnalytics();
+  </script>
+</body>
+</html>
